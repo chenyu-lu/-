@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体育活动管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#FF7D00',
+                        success: '#00B42A',
+                        warning: '#FF7D00',
+                        danger: '#F53F3F',
+                        info: '#86909C',
+                        dark: '#1D2129',
+                        light: '#F2F3F5'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+
+            .sidebar-item {
+                @apply flex items-center px-4 py-3 text-gray-600 hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200;
+            }
+
+            .sidebar-item.active {
+                @apply bg-primary/10 text-primary font-medium;
+            }
+
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+
+            .btn-primary {
+                @apply bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-md transition-all duration-200;
+            }
+
+            .btn-secondary {
+                @apply bg-white border border-gray-300 hover:bg-gray-50 text-dark px-4 py-2 rounded-md transition-all duration-200;
+            }
+
+            .btn-danger {
+                @apply bg-danger hover:bg-danger/90 text-white px-4 py-2 rounded-md transition-all duration-200;
+            }
+
+            .input-control {
+                @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200;
+            }
+
+            .badge {
+                @apply text-xs font-medium px-2 py-1 rounded-full;
+            }
+
+            .schedule-time {
+                @apply text-sm font-medium text-primary;
+            }
+
+            .schedule-item {
+                @apply border-l-2 border-primary/20 pl-4 pb-6 ml-1 relative;
+            }
+
+            .schedule-item::before {
+                @apply absolute left-[-8px] top-0 w-4 h-4 rounded-full bg-primary;
+                content: '';
+            }
+        }
+    </style>
+    <style>
+        /* 隐藏所有页面 */
+        .page {
+            display: none;
+        }
+
+        /* 激活页面显示 */
+        .page.active {
+            display: block;
+        }
+
+        /* 登录注册页面半覆盖样式 */
+        #loginPage {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        /* 优化登录注册表单样式 */
+        #loginPage form label {
+            display: block;
+            margin-bottom: 0.25rem;
+            margin-top: 1rem;
+        }
+
+        #loginPage form input {
+            display: block;
+            width: 100%;
+        }
+
+        #loginPage form button {
+            margin-top: 1.5rem;
+        }
+
+        /* 标签页样式 */
+        .tab {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .tab button {
+            background-color: #f2f3f5;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+
+        .tab button.active {
+            background-color: #165DFF;
+            color: white;
+        }
+
+        /* 搜索状态提示样式 */
+#searchStatus {
+    transition: all 0.3s ease;
+}
+
+/* 无结果提示样式 */
+#noResults {
+    transition: all 0.3s ease;
+}
+
+/* 活动卡片过渡效果 */
+.card-hover {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* 隐藏时的卡片样式 */
+.card-hover[style*="display: none"] {
+    display: block !important;
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding: 0;
+    margin: -1px; /* 补偿边框 */
+    border: none;
+    transform: scale(0.9);
+}
+    </style>
+</head>
+
+<body class="font-inter bg-gray-50 text-dark min-h-screen flex flex-col">
+    <div class="flex flex-1 overflow-hidden">
+        <!-- 侧边栏 -->
+        <aside id="sidebar" class="bg-white shadow-md w-64 h-screen fixed left-0 top-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-30">
+            <div class="flex items-center justify-between h-16 px-4 border-b">
+                <div class="flex items-center space-x-2">
+                    <i class="fa fa-calendar-check-o text-primary text-2xl"></i>
+                    <span class="font-bold text-xl">体育活动管理系统</span>
+                </div>
+                <button id="closeSidebar" class="md:hidden text-gray-500 hover:text-primary">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+
+            <div class="py-4 px-2">
+                <nav>
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-2">主菜单</p>
+                
+                    <a href="#events" class="sidebar-item">
+                        <i class="fa fa-calendar w-5 h-5 mr-3"></i>
+                        <span>活动列表</span>
+                    </a>
+                
+                    <a href="#eventorder" class="sidebar-item">
+                        <i class="fa fa-ticket w-5 h-5 mr-3"></i>
+                        <span>活动订单</span>
+                    </a>
+                    <a href="#eventregistration" class="sidebar-item">
+                        <i class="fa fa-pencil-square-o w-5 h-5 mr-3"></i>
+                        <span>活动报名</span>
+                    </a>
+                    <a href="#eventevaluation" class="sidebar-item">
+                        <i class="fa fa-comments w-5 h-5 mr-3"></i>
+                        <span>活动评价</span>
+                    </a>
+                
+
+                
+                </nav>
+            </div>
+        </aside>
+
+        <!-- 遮罩层 -->
+        <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden md:hidden"></div>
+
+        <!-- 主内容区 -->
+        <main class="flex-1 md:ml-64 transition-all duration-300">
+            <!-- 顶部导航 -->
+            <header class="bg-white shadow-sm sticky top-0 z-10" id="navbar">
+                <div class="flex items-center justify-between h-16 px-4">
+                    <div class="flex items-center">
+                        <button id="toggleSidebar" class="mr-4 text-gray-500 hover:text-primary md:hidden">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">体育活动管理系统</h1>
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <button class="relative text-gray-500 hover:text-primary">
+                            <i class="fa fa-bell text-xl"></i>
+                            <span class="absolute top-0 right-0 h-2 w-2 rounded-full bg-danger"></span>
+                        </button>
+                        <div class="relative">
+                            <button id="userMenuButton" class="flex items-center space-x-2 focus:outline-none">
+                                <img src="https://picsum.photos/id/1005/40/40" alt="用户头像" class="w-8 h-8 rounded-full object-cover">
+                                <span class="hidden md:block">管理员</span>
+                                <i class="fa fa-caret-down text-gray-500"></i>
+                            </button>
+
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 页面内容 -->
+            <!-- 登录页面 -->
+            <div id="loginPage" class="page active">
+                <h2>用户注册与登录</h2>
+
+                <!-- 标签页：注册和登录 -->
+                <div class="tab">
+                    <button id="registerTab" onclick="openTab('register')">注册</button>
+                    <button id="loginTab" onclick="openTab('login')">登录</button>
+                </div>
+
+                <!-- 注册表单 -->
+                <div id="register" class="tabcontent">
+                    <h3>注册新账号</h3>
+                    <form id="registerForm">
+                        <div class="error" id="registerError"></div>
+                        <div class="success" id="registerSuccess"></div>
+                        <label for="regUsername">用户名:</label>
+                        <input type="text" id="regUsername" required>
+                        <label for="regEmail">邮箱:</label>
+                        <input type="email" id="regEmail" required>
+                        <label for="regPassword">密码:</label>
+                        <input type="password" id="regPassword" required>
+                        <button type="submit">注册</button>
+                    </form>
+                </div>
+
+                <!-- 登录表单 -->
+                <div id="login" class="tabcontent">
+                    <h3>登录</h3>
+                    <form id="loginForm">
+                        <div class="error" id="loginError"></div>
+                        <div class="success" id="loginSuccess"></div>
+                        <label for="loginUsername">用户名:</label>
+                        <input type="text" id="loginUsername" required>
+                        <label for="loginPassword">密码:</label>
+                        <input type="password" id="loginPassword" required>
+                        <button type="submit">登录</button>
+                    </form>
+                </div>
+
+                <!-- 用户信息（登录后显示） -->
+                <div id="userProfile" style="display: none;">
+                    <h3>欢迎回来，<span id="displayUsername"></span>！</h3>
+                    <p>您的用户ID: <span id="displayUserId"></span></p>
+                    <button onclick="logout()">退出登录</button>
+                </div>
+            </div>
+            <!-- 活动列表页面 -->
+            <div id="eventsPage" class="page">
+            
+                    <!-- 活动列表内容 -->
+                    <div class="p-4 sm:p-6 lg:p-8">
+                        <!-- 搜索框和操作按钮 -->
+    <div class="flex gap-2 mb-6">
+        <input type="text" id="searchInput" class="input-control flex-1" placeholder="输入活动名称、地点或日期搜索...">
+        <button id="searchButton" class="btn-primary">搜索</button>
+        <button id="resetSearch" class="btn-secondary hidden">
+            <i class="fa fa-times"></i> 清除搜索
+        </button>
+    </div>
+                    <!-- 搜索状态提示 -->
+    <div id="searchStatus" class="hidden mb-4 p-3 bg-blue-50 rounded-lg">
+        <div class="flex justify-between items-center">
+            <div>
+                <span class="font-medium">当前搜索：</span>
+                <span id="currentSearchTerm" class="text-primary"></span>
+                <span id="searchResultsCount" class="ml-2 text-gray-600"></span>
+            </div>
+            <button onclick="resetSearch()" class="text-sm text-primary hover:underline">
+                <i class="fa fa-times"></i> 显示全部活动
+            </button>
+        </div>
+    </div>
+                        <h2 class="text-2xl font-semibold mb-4">活动列表</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- 活动卡片示例 -->
+                            <div class="bg-white rounded-lg shadow-md p-4 card-hover">
+                                <img src="https://picsum.photos/id/10/400/200" alt="活动封面" class="w-full h-32 object-cover rounded-t-lg mb-4">
+                                <h3 class="text-lg font-semibold mb-2">羽毛球比赛</h3>
+                                <p class="text-gray-600 mb-4">时间：2025年5月20日<br>地点：南京大学鼓楼校区</p>
+                                
+                                <div class="event-card" onclick="navigateTo('eventdetailPage1')">
+                                    <button class="btn-primary w-full">查看详情</button>
+                                </div> 
+                            </div>
+                            <div class="bg-white rounded-lg shadow-md p-4 card-hover">
+                                <img src="https://picsum.photos/id/20/400/200" alt="活动封面" class="w-full h-32 object-cover rounded-t-lg mb-4">
+                                <h3 class="text-lg font-semibold mb-2">篮球友谊赛</h3>
+                                <p class="text-gray-600 mb-4">时间：2025年6月15日<br>地点：南京大学仙林校区</p>
+                                <div class="event-card" onclick="navigateTo('eventdetailPage2')">
+                                    <button class="btn-primary w-full">查看详情</button>
+                                </div> 
+                            </div>
+                            <div class="bg-white rounded-lg shadow-md p-4 card-hover">
+                                <img src="https://picsum.photos/id/30/400/200" alt="活动封面" class="w-full h-32 object-cover rounded-t-lg mb-4">
+                                <h3 class="text-lg font-semibold mb-2">足球联赛</h3>
+                                <p class="text-gray-600 mb-4">时间：2025年7月10日<br>地点：南京大学仙林校区</p>
+                                <div class="event-card" onclick="navigateTo('eventdetailPage3')">
+                                    <button class="btn-primary w-full">查看详情</button>
+                                </div> 
+                            </div>
+                            <div class="bg-white rounded-lg shadow-md p-4 card-hover">
+                                <img src="https://picsum.photos/id/40/400/200" alt="活动封面" class="w-full h-32 object-cover rounded-t-lg mb-4">
+                                <h3 class="text-lg font-semibold mb-2">乒乓球比赛</h3>
+                                <p class="text-gray-600 mb-4">时间：2025年8月5日<br>地点：南京大学鼓楼校区</p>
+                                <div class="event-card" onclick="navigateTo('eventdetailPage4')">
+                                    <button class="btn-primary w-full">查看详情</button>
+                                </div> 
+                            </div>
+                            <div class="bg-white rounded-lg shadow-md p-4 card-hover">
+                                <img src="https://picsum.photos/id/50/400/200" alt="活动封面" class="w-full h-32 object-cover rounded-t-lg mb-4">
+                                <h3 class="text-lg font-semibold mb-2">马拉松赛</h3>
+                                <p class="text-gray-600 mb-4">时间：2025年9月1日<br>地点：南京市中心</p>
+                                <div class="event-card" onclick="navigateTo('eventdetailPage5')">
+                                    <button class="btn-primary w-full">查看详情</button>
+                                </div> 
+                            </div>
+                            <div class="bg-white rounded-lg shadow-md p-4 card-hover">
+                                <img src="https://picsum.photos/id/60/400/200" alt="活动封面" class="w-full h-32 object-cover rounded-t-lg mb-4">
+                                <h3 class="text-lg font-semibold mb-2">游泳比赛</h3>
+                                <p class="text-gray-600 mb-4">时间：2025年10月10日<br>地点：南京大学苏州校区</p>
+                                <div class="event-card" onclick="navigateTo('eventdetailPage6')">
+                                    <button class="btn-primary w-full">查看详情</button>
+                                </div> 
+                            </div>
+
+                        </div>
+                        <!-- 搜索结果展示区域 -->
+                    <!-- 无结果提示 -->
+    <div id="noResults" class="hidden text-center py-12">
+        <i class="fa fa-search text-4xl text-gray-300 mb-4"></i>
+        <p class="text-xl text-gray-500">没有找到匹配的活动</p>
+        <button onclick="resetSearch()" class="btn-secondary mt-4">
+            <i class="fa fa-arrow-left"></i> 显示全部活动
+        </button>
+    </div>
+                    </div>
+            </div>
+
+
+            <!-- 活动详情页面 -->
+            <div id="eventdetailPage1" class="page">
+                <div class="p-4 sm:p-6 lg:p-8">
+                    <!-- 活动封面 -->
+                    <div class="relative rounded-xl overflow-hidden shadow-lg mb-6">
+                        <img src="https://picsum.photos/id/1/1200/400" alt="体育运动"
+                            class="w-full h-64 md:h-80 object-cover">
+                    </div>
+                    <!-- 活动详情内容 -->
+                    <div>
+                        <h2 class="text-2xl font-semibold mb-4">羽毛球比赛</h2>
+                        <p class="text-gray-600 mb-4">时间：2025年5月20日<br>地点：南京大学鼓楼校区</p>
+                        <p class="text-gray-800 mb-6">活动简介：本次羽毛球比赛旨在促进学生之间的交流与合作，增强身体素质，欢迎各位同学踊跃报名参加！</p>
+                        <button class="btn-primary" onclick="navigateTo('eventregistrationPage')">立即报名</button>
+                    </div>
+                    <div class="mt-8">
+                        <h3 class="text-xl font-semibold mb-4">活动时间表</h3>
+                        <div class="schedule-item">
+                            <div class="schedule-time">09:00 - 10:00</div>
+                            <p>开幕式及热身活动</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">10:00 - 12:00</div>
+                            <p>羽毛球比赛第一轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">12:00 - 13:00</div>
+                            <p>午餐休息</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">13:00 - 15:00</div>
+                            <p>羽毛球比赛第二轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">15:00 - 16:00</div>
+                            <p>颁奖典礼及闭幕式</p>
+                        </div>
+            </div>
+                </div>
+            </div>`
+
+            <div id="eventdetailPage2" class="page">
+                <div class="p-4 sm:p-6 lg:p-8">
+                    <!-- 活动封面 -->
+                    <div class="relative rounded-xl overflow-hidden shadow-lg mb-6">
+                        <img src="https://picsum.photos/id/1/1200/400" alt="体育运动"
+                            class="w-full h-64 md:h-80 object-cover">
+                    </div>
+                    <!-- 活动详情内容 -->
+                    <div>
+                        <h2 class="text-2xl font-semibold mb-4">篮球友谊赛</h2>
+                        <p class="text-gray-600 mb-4">时间：2025年6月15日<br>地点：南京大学仙林校区</p>
+                        <p class="text-gray-800 mb-6">活动简介：本次篮球友谊赛旨在促进学生之间的交流与合作，增强身体素质，欢迎各位同学踊跃报名参加！</p>
+                        <button class="btn-primary" onclick="navigateTo('eventregistrationPage')">立即报名</button>
+                    </div>
+                    <div class="mt-8">
+                        <h3 class="text-xl font-semibold mb-4">活动时间表</h3>
+                        <div class="schedule-item">
+                            <div class="schedule-time">09:00 - 10:00</div>
+                            <p>开幕式及热身活动</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">10:00 - 12:00</div>
+                            <p>篮球友谊赛第一轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">12:00 - 13:00</div>
+                            <p>午餐休息</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">13:00 - 15:00</div>
+                            <p>篮球友谊赛第二轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">15:00 - 16:00</div>
+                            <p>颁奖典礼及闭幕式</p>
+                        </div>
+                    </div>
+
+            </div>
+        </div>
+
+        <div id="eventdetailPage3" class="page">
+                <div class="p-4 sm:p-6 lg:p-8">
+                    <!-- 活动封面 -->
+                    <div class="relative rounded-xl overflow-hidden shadow-lg mb-6">
+                        <img src="https://picsum.photos/id/1/1200/400" alt="体育运动"
+                            class="w-full h-64 md:h-80 object-cover">
+                    </div>
+                    <!-- 活动详情内容 -->
+                    <div>
+                        <h2 class="text-2xl font-semibold mb-4">足球联赛</h2>
+                        <p class="text-gray-600 mb-4">时间：2025年7月10日<br>地点：南京大学仙林校区</p>
+                        <p class="text-gray-800 mb-6">活动简介：本次足球联赛旨在促进学生之间的交流与合作，增强身体素质，欢迎各位同学踊跃报名参加！</p>
+                        <button class="btn-primary" onclick="navigateTo('eventregistrationPage')">立即报名</button>
+                    </div>
+                    <div class="mt-8">
+                        <h3 class="text-xl font-semibold mb-4">活动时间表</h3>
+                        <div class="schedule-item">
+                            <div class="schedule-time">09:00 - 10:00</div>
+                            <p>开幕式及热身活动</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">10:00 - 12:00</div>
+                            <p>足球联赛第一轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">12:00 - 13:00</div>
+                            <p>午餐休息</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">13:00 - 15:00</div>
+                            <p>足球联赛第二轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">15:00 - 16:00</div>
+                            <p>颁奖典礼及闭幕式</p>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+
+                <div id="eventdetailPage4" class="page">
+                <div class="p-4 sm:p-6 lg:p-8">
+                    <!-- 活动封面 -->
+                    <div class="relative rounded-xl overflow-hidden shadow-lg mb-6">
+                        <img src="https://picsum.photos/id/1/1200/400" alt="体育运动"
+                            class="w-full h-64 md:h-80 object-cover">
+                    </div>
+                    <!-- 活动详情内容 -->
+                    <div>
+                        <h2 class="text-2xl font-semibold mb-4">乒乓球比赛</h2>
+                        <p class="text-gray-600 mb-4">时间：2025年8月5日<br>地点：南京大学鼓楼校区</p>
+                        <p class="text-gray-800 mb-6">活动简介：本次乒乓球比赛旨在促进学生之间的交流与合作，增强身体素质，欢迎各位同学踊跃报名参加！</p>
+                        <button class="btn-primary" onclick="navigateTo('eventregistrationPage')">立即报名</button>
+                    </div>
+                    <div class="mt-8">
+                        <h3 class="text-xl font-semibold mb-4">活动时间表</h3>
+                        <div class="schedule-item">
+                            <div class="schedule-time">09:00 - 10:00</div>
+                            <p>开幕式及热身活动</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">10:00 - 12:00</div>
+                            <p>乒乓球比赛第一轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">12:00 - 13:00</div>
+                            <p>午餐休息</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">13:00 - 15:00</div>
+                            <p>乒乓球比赛第二轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">15:00 - 16:00</div>
+                            <p>颁奖典礼及闭幕式</p>
+                        </div>
+                    
+                    </div>
+                    </div>
+                    </div>
+
+            <div id="eventdetailPage5" class="page">
+                <div class="p-4 sm:p-6 lg:p-8">
+                    <!-- 活动封面 -->
+                    <div class="relative rounded-xl overflow-hidden shadow-lg mb-6">
+                        <img src="https://picsum.photos/id/1/1200/400" alt="体育运动"
+                            class="w-full h-64 md:h-80 object-cover">
+                    </div>
+                    <!-- 活动详情内容 -->
+                    <div>
+                        <h2 class="text-2xl font-semibold mb-4">马拉松赛</h2>
+                        <p class="text-gray-600 mb-4">时间：2025年9月1日<br>地点：南京市中心</p>
+                        <p class="text-gray-800 mb-6">活动简介：本次马拉松赛旨在促进学生之间的交流与合作，增强身体素质，欢迎各位同学踊跃报名参加！</p>
+                        <button class="btn-primary" onclick="navigateTo('eventregistrationPage')">立即报名</button>
+                    </div>
+                    <div class="mt-8">
+                        <h3 class="text-xl font-semibold mb-4">活动时间表</h3>
+                        <div class="schedule-item">
+                            <div class="schedule-time">09:00 - 10:00</div>
+                            <p>开幕式及热身活动</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">10:00 - 12:00</div>
+                            <p>马拉松赛第一轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">12:00 - 13:00</div>
+                            <p>午餐休息</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">13:00 - 15:00</div>
+                            <p>马拉松赛第二轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">15:00 - 16:00</div>
+                            <p>颁奖典礼及闭幕式</p>
+                        </div>
+
+                    </div>
+                    </div>
+                    </div>
+
+            <div id="eventdetailPage6" class="page">
+                <div class="p-4 sm:p-6 lg:p-8">
+                    <!-- 活动封面 -->
+                    <div class="relative rounded-xl overflow-hidden shadow-lg mb-6">
+                        <img src="https://picsum.photos/id/1/1200/400" alt="体育运动"
+                            class="w-full h-64 md:h-80 object-cover">
+                    </div>
+                    <!-- 活动详情内容 -->
+                    <div>
+                        <h2 class="text-2xl font-semibold mb-4">游泳比赛</h2>
+                        <p class="text-gray-600 mb-4">时间：2025年10月10日<br>地点：南京大学苏州校区</p>
+                        <p class="text-gray-800 mb-6">活动简介：本次游泳比赛旨在促进学生之间的交流与合作，增强身体素质，欢迎各位同学踊跃报名参加！</p>
+                        <button class="btn-primary" onclick="navigateTo('eventregistrationPage')">立即报名</button>
+                    </div>
+                    <div class="mt-8">
+                        <h3 class="text-xl font-semibold mb-4">活动时间表</h3>
+                        <div class="schedule-item">
+                            <div class="schedule-time">09:00 - 10:00</div>
+                            <p>开幕式及热身活动</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">10:00 - 12:00</div>
+                            <p>游泳比赛第一轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">12:00 - 13:00</div>
+                            <p>午餐休息</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">13:00 - 15:00</div>
+                            <p>游泳比赛第二轮</p>
+                        </div>
+                        <div class="schedule-item">
+                            <div class="schedule-time">15:00 - 16:00</div>
+                            <p>颁奖典礼及闭幕式</p>
+                        </div>
+
+                    </div>
+                    </div>
+                    </div>
+
+
+            <!-- 活动订单页面 -->
+            <div id="eventorderPage" class="page">
+                <div class="py-4 px-2">
+                <h2 class="text-2xl font-semibold mb-4">活动订单</h2>
+            <table id="orderTable" class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            姓名
+                        </th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            单位
+                        </th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            邮箱
+                        </th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            手机号码
+                        </th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            体育活动类型
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="orderTableBody">
+                    <!-- 订单数据将动态添加到这里 -->
+                </tbody>
+            </table>
+
+                </div>
+            </div>
+
+            <!-- 活动报名页面 -->
+            <div id="eventregistrationPage" class="page">
+                <form id="registrationForm">
+                    <!-- 活动报名表单内容 -->
+                    <section id="register" class="py-16 bg-gradient-custom text-black">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16">
+        <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold">立即报名</h2>
+        <div class="w-20 h-1 bg-white mx-auto mt-4 mb-6"></div>
+        <p class="text-white/80 max-w-3xl mx-auto">填写以下表单，预留您的席位。名额有限，请提前注册</p>
+    </div>
+    
+    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
+        <div class="p-8">
+        <form id="registrationForm" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="fullName" class="block text-sm font-medium text-dark mb-1">姓名 <span class="text-red-500">*</span></label>
+                <input type="text" id="fullName" name="fullName" required
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom"
+                placeholder="请输入您的姓名">
+            </div>
+            <div>
+                <label for="company" class="block text-sm font-medium text-dark mb-1">单位 <span class="text-red-500">*</span></label>
+                <input type="text" id="company" name="company" required
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom"
+                placeholder="请输入您的单位名称">
+            </div>
+            </div>
+            
+            <div>
+            <label for="email" class="block text-sm font-medium text-dark mb-1">邮箱 <span class="text-red-500">*</span></label>
+            <input type="email" id="email" name="email" required
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom"
+                placeholder="请输入您的邮箱地址">
+            </div>
+            
+            <div>
+            <label for="phone" class="block text-sm font-medium text-dark mb-1">手机号码 <span class="text-red-500">*</span></label>
+            <input type="tel" id="phone" name="phone" required
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom"
+                placeholder="请输入您的手机号码">
+            </div>
+            
+            
+            <div>
+            <label for="interest" class="block text-sm font-medium text-dark mb-1">体育活动类型 <span class="text-red-500">*</span></label>
+            <select id="interest" name="interest" required
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-custom">
+                <option value="" disabled selected>请选择报名内容</option>
+                <option value="badminton">羽毛球比赛</option>
+                <option value="basketball">篮球友谊赛</option>
+                <option value="football">足球联赛</option>
+                <option value="table tennis">乒乓球比赛</option>
+                <option value="marathon">马拉松赛</option>
+                <option value="swim">游泳比赛</option>
+            </select>
+            </div>
+        
+            <div>
+            <label class="flex items-start">
+                <input type="checkbox" id="agreeTerms" name="agreeTerms" required
+                class="w-4 h-4 mt-1 text-primary focus:ring-primary border-gray-300 rounded">
+                <span class="ml-2 text-dark text-sm">
+                我同意接收体育相关的信息和更新，并且已阅读并同意<a href="#" class="text-primary hover:underline">隐私政策</a>和<a href="#" class="text-primary hover:underline">条款条件</a>。<span class="text-red-500">*</span>
+                </span>
+            </label>
+            </div>
+            
+            <div class="pt-4">
+            <button type="submit" id="submitBtn"
+                class="w-full bg-primary hover:bg-primary/90 text-white py-3 px-4 rounded-md text-base font-medium transition-custom shadow-lg hover:shadow-xl">
+                提交报名 <i class="fa fa-paper-plane ml-2"></i>
+            </button>
+            </div>
+        </form>
+        </div>
+    </div>
+    </div>
+</section>
+                
+                
+                    
+                    
+            
+            </div>
+
+            
+
+            
+    
+
+            <!-- 活动评价页面 -->
+            <div id="eventevaluationPage" class="page">
+                <div class="p-4 sm:p-6 lg:p-8">
+                     <h2 class="text-2xl font-semibold mb-4">活动评价</h2>
+                    <form id="evaluationForm">
+                        <div class="mb-4">
+                            <label for="activity" class="block text-sm font-medium text-dark mb-1">选择活动 <span class="text-red-500">*</span></label>
+                            <select id="activity" name="activity" required class="input-control">
+                                <option value="" disabled selected>请选择活动</option>
+                                <option value="badminton">羽毛球比赛</option>
+                                <option value="basketball">篮球友谊赛</option>
+                                <option value="football">足球联赛</option>
+                                <option value="table tennis">乒乓球比赛</option>
+                                <option value="marathon">马拉松赛</option>
+                                <option value="swim">游泳比赛</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label for="rating" class="block text-sm font-medium text-dark mb-1">评分 <span class="text-red-500">*</span></label>
+                            <select id="rating" name="rating" required class="input-control">
+                                <option value="" disabled selected>请选择评分</option>
+                                <option value="5">5星（非常满意）</option>
+                                <option value="4">4星（满意）</option>
+                                <option value="3">3星（一般）</option>
+                                <option value="2">2星（不满意）</option>
+                                <option value="1">1星（非常不满意）</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label for="comment" class="block text-sm font-medium text-dark mb-1">评价内容 <span class="text-red-500">*</span></label>
+                            <textarea id="comment" name="comment" required class="input-control" rows="4" placeholder="请输入评价内容"></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">提交评价</button>
+                    </form>
+                    <div id="evaluationList" class="mt-8">
+                        <h3 class="text-xl font-semibold mb-4">评价列表</h3>
+                        <!-- 评价列表将通过JavaScript动态添加 -->
+                    </div>
+                </div>
+            </div>
+            
+            
+        </main>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 py-6 md:ml-64 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div class="flex items-center mb-4 md:mb-0">
+                    <i class="fa fa-calendar text-primary text-xl mr-2"></i>
+                    <span class="font-bold text-lg">体育活动管理系统</span>
+                </div>
+                <div class="text-sm text-gray-500">
+                    &copy; 2025 体育活动管理系统. 保留所有权利.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // 侧边栏交互
+        const toggleSidebar = document.getElementById('toggleSidebar');
+        const closeSidebar = document.getElementById('closeSidebar');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        toggleSidebar.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+            sidebarOverlay.classList.toggle('hidden');
+        });
+
+        closeSidebar.addEventListener('click', () => {
+            sidebar.classList.add('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+        });
+
+        sidebarOverlay.addEventListener('click', () => {
+            sidebar.classList.add('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+        });
+
+        // 用户菜单交互
+        const userMenuButton = document.getElementById('userMenuButton');
+        const userMenu = document.getElementById('userMenu');
+
+        userMenuButton.addEventListener('click', () => {
+            userMenu.classList.toggle('hidden');
+        });
+
+        // 点击其他区域关闭用户菜单
+        document.addEventListener('click', (event) => {
+            if (!userMenuButton.contains(event.target) && !userMenu.contains(event.target)) {
+                userMenu.classList.add('hidden');
+            }
+        });
+
+        // 导航高亮
+        const navLinks = document.querySelectorAll('.sidebar-item');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            });
+        });
+
+        // 导航栏滚动效果
+        window.addEventListener('scroll', () => {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 10) {
+                navbar.classList.add('bg-white', 'shadow-md');
+                navbar.classList.remove('bg-transparent');
+            } else {
+                navbar.classList.remove('bg-white', 'shadow-md');
+                navbar.classList.add('bg-transparent');
+            }
+        });
+
+        // 路由处理
+        function handleRouteChange() {
+            const hash = window.location.hash.slice(1) || 'login';
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => {
+                page.classList.toggle('active', page.id === `${hash}Page`);
+            });
+        }
+
+        // 监听哈希变化事件
+        window.addEventListener('hashchange', handleRouteChange);
+
+        // 页面加载时触发路由处理
+        window.addEventListener('load', handleRouteChange);
+
+        // 切换标签页
+        function openTab(tabName) {
+            const tabcontents = document.querySelectorAll('.tabcontent');
+            const tablinks = document.querySelectorAll('.tab button');
+            tabcontents.forEach(tab => tab.style.display = 'none');
+            tablinks.forEach(link => link.classList.remove('active'));
+            document.getElementById(tabName).style.display = 'block';
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        }
+
+        // 初始化显示注册表单
+        document.getElementById('register').style.display = 'block';
+        document.getElementById('registerTab').classList.add('active');
+
+        // 模拟用户数据库
+        const users = [];
+
+        // 注册表单提交事件
+        const registerForm = document.getElementById('registerForm');
+        registerForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const regUsername = document.getElementById('regUsername').value;
+            const regEmail = document.getElementById('regEmail').value;
+            const regPassword = document.getElementById('regPassword').value;
+
+            // 检查用户名是否已存在
+            const existingUser = users.find(user => user.username === regUsername);
+            if (existingUser) {
+                document.getElementById('registerError').textContent = '用户名已存在，请选择其他用户名。';
+                return;
+            }
+
+            // 注册新用户
+            users.push({ username: regUsername, email: regEmail, password: regPassword });
+            document.getElementById('registerSuccess').textContent = '注册成功，请登录。';
+            document.getElementById('registerError').textContent = '';
+        });
+
+        // 登录表单提交事件
+        const loginForm = document.getElementById('loginForm');
+        loginForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const loginUsername = document.getElementById('loginUsername').value;
+            const loginPassword = document.getElementById('loginPassword').value;
+
+            // 验证登录信息
+            const user = users.find(user => user.username === loginUsername && user.password === loginPassword);
+            if (user) {
+                document.getElementById('loginSuccess').textContent = '登录成功！';
+                document.getElementById('loginError').textContent = '';
+                document.getElementById('loginPage').style.display = 'none'; // 登录成功后隐藏登录注册页面
+                // 显示默认页面，这里以活动列表页面为例
+                document.getElementById('eventsPage').classList.add('active');
+                document.getElementById('displayUsername').textContent = loginUsername;
+                document.getElementById('userProfile').style.display = 'block';
+            } else {
+                document.getElementById('loginError').textContent = '用户名或密码错误，请重试。';
+                document.getElementById('loginSuccess').textContent = '';
+            }
+        });
+
+        // 退出登录
+        function logout() {
+            document.getElementById('loginPage').style.display = 'block'; // 退出登录时显示登录注册页面
+            document.getElementById('eventsPage').classList.remove('active');
+            document.getElementById('userProfile').style.display = 'none';
+            document.getElementById('loginUsername').value = '';
+            document.getElementById('loginPassword').value = '';
+        }
+
+        //页面跳转（活动列表->活动详情）
+        function navigateTo(pageId) {
+        // 隐藏所有页面
+        document.querySelectorAll('.page').forEach(page => {
+        page.style.display = 'none';
+    });
+    
+    // 显示目标页面
+    document.getElementById(pageId).style.display = 'block';
+    
+    // 更新URL但不刷新页面
+    history.pushState(null, null, `#${pageId}`);
+}
+        
+    // 搜索功能实现
+let isSearchActive = false; // 标记当前是否处于搜索状态
+
+document.getElementById('searchButton').addEventListener('click', performSearch);
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') performSearch();
+});
+document.getElementById('resetSearch').addEventListener('click', resetSearch);
+
+function performSearch() {
+    const searchTerm = document.getElementById('searchInput').value.trim();
+    
+    if (!searchTerm) {
+        alert('请输入搜索关键词');
+        return;
+    }
+    
+    const eventCards = document.querySelectorAll('.card-hover');
+    let matchCount = 0;
+    
+    // 执行搜索
+    eventCards.forEach(card => {
+        const title = card.querySelector('h3').textContent.toLowerCase();
+        const details = card.querySelector('p').textContent.toLowerCase();
+        const searchTermLower = searchTerm.toLowerCase();
+        
+        if (title.includes(searchTermLower) || details.includes(searchTermLower)) {
+            card.style.display = 'block';
+            matchCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    // 更新UI状态
+    document.getElementById('currentSearchTerm').textContent = `"${searchTerm}"`;
+    document.getElementById('searchResultsCount').textContent = `(找到 ${matchCount} 个结果)`;
+    document.getElementById('searchStatus').classList.remove('hidden');
+    document.getElementById('resetSearch').classList.remove('hidden');
+    isSearchActive = true;
+    
+    // 处理无结果情况
+    if (matchCount === 0) {
+        document.getElementById('noResults').classList.remove('hidden');
+    } else {
+        document.getElementById('noResults').classList.add('hidden');
+    }
+}
+
+// 重置搜索功能
+function resetSearch() {
+    const eventCards = document.querySelectorAll('.card-hover');
+    
+    // 恢复所有卡片的显示
+    eventCards.forEach(card => {
+        card.style.display = 'block';
+    });
+    
+    // 重置UI状态
+    document.getElementById('searchInput').value = '';
+    document.getElementById('searchStatus').classList.add('hidden');
+    document.getElementById('resetSearch').classList.add('hidden');
+    document.getElementById('noResults').classList.add('hidden');
+    isSearchActive = false;
+}
+
+// 页面加载时为每个卡片添加动画类
+document.addEventListener('DOMContentLoaded', function() {
+    const eventCards = document.querySelectorAll('.card-hover');
+    eventCards.forEach((card, index) => {
+        card.style.transition = 'all 0.3s ease';
+        card.style.opacity = '1';
+    });
+});
+
+    document.getElementById('registrationForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const fullName = document.getElementById('fullName').value;
+            const company = document.getElementById('company').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const interest = document.getElementById('interest').value;
+
+            const orderTableBody = document.getElementById('orderTableBody');
+            const newRow = orderTableBody.insertRow();
+
+            const nameCell = newRow.insertCell(0);
+            const companyCell = newRow.insertCell(1);
+            const emailCell = newRow.insertCell(2);
+            const phoneCell = newRow.insertCell(3);
+            const interestCell = newRow.insertCell(4);
+
+            nameCell.textContent = fullName;
+            companyCell.textContent = company;
+            emailCell.textContent = email;
+            phoneCell.textContent = phone;
+            interestCell.textContent = interest;
+
+            // 清空表单
+            document.getElementById('registrationForm').reset();
+        });
+
+        const searchButton = document.getElementById('searchButton');
+        const searchInput = document.getElementById('searchInput');
+        const eventList = document.getElementById('eventList');
+        const searchResults = document.getElementById('searchResults');
+        const searchResultList = document.getElementById('searchResultList');
+
+        searchButton.addEventListener('click', function() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const events = eventList.querySelectorAll('.card-hover');
+            let hasResults = false;
+
+            // 清空搜索结果
+            searchResultList.innerHTML = '';
+
+            events.forEach(event => {
+                const eventTitle = event.querySelector('h3').textContent.toLowerCase();
+                if (eventTitle.includes(searchTerm)) {
+                    hasResults = true;
+                    searchResultList.appendChild(event.cloneNode(true));
+                }
+            });
+
+            if (hasResults) {
+                eventList.style.display = 'none';
+                searchResults.style.display = 'block';
+            } else {
+                eventList.style.display = 'grid';
+                searchResults.style.display = 'none';
+            }
+        });
+
+
+         // 活动评价表单提交处理
+        const evaluationForm = document.getElementById('evaluationForm');
+        const evaluationList = document.getElementById('evaluationList');
+
+        evaluationForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const activity = document.getElementById('activity').value;
+            const rating = document.getElementById('rating').value;
+            const comment = document.getElementById('comment').value;
+
+            const evaluationItem = document.createElement('div');
+            evaluationItem.classList.add('bg-white', 'rounded-lg', 'shadow-md', 'p-4', 'mb-4');
+            evaluationItem.innerHTML = `
+                <p class="text-lg font-semibold">${activity}</p>
+                <p class="text-gray-600">评分：${rating}星</p>
+                <p class="text-gray-800">评价内容：${comment}</p>
+            `;
+
+            evaluationList.appendChild(evaluationItem);
+
+            // 清空表单
+            evaluationForm.reset();
+        });
+
+
+// 页面导航函数 - 确保所有页面切换都通过此函数处理
+function navigateTo(pageId) {
+    // 隐藏所有页面
+    document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+    });
+    // 显示目标页面
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) {
+        targetPage.classList.add('active');
+    }
+    // 在移动设备上导航后自动关闭侧边栏
+    if (window.innerWidth < 768) {
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        document.getElementById('sidebarOverlay').classList.add('hidden');
+    }
+}
+
+// 初始化侧边栏导航事件
+document.addEventListener('DOMContentLoaded', function() {
+    // 为所有侧边栏链接添加点击事件
+    document.querySelectorAll('#sidebar .sidebar-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            // 从href属性获取目标页面ID（如#events -> eventsPage）
+            const pageName = this.getAttribute('href').substring(1);
+            const pageId = pageName + 'Page';
+            navigateTo(pageId);
+            
+            // 更新活跃状态
+            document.querySelectorAll('#sidebar .sidebar-item').forEach(link => {
+                link.classList.remove('active');
+            });
+            this.classList.add('active');
+        });
+    });
+
+    // 侧边栏切换逻辑
+    document.getElementById('toggleSidebar').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('-translate-x-full');
+        document.getElementById('sidebarOverlay').classList.toggle('hidden');
+    });
+
+    document.getElementById('closeSidebar').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        document.getElementById('sidebarOverlay').classList.add('hidden');
+    });
+
+    document.getElementById('sidebarOverlay').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        document.getElementById('sidebarOverlay').classList.add('hidden');
+    });
+
+    // 登录/注册标签切换
+    document.getElementById('registerTab').addEventListener('click', function() {
+        openTab('register');
+    });
+    document.getElementById('loginTab').addEventListener('click', function() {
+        openTab('login');
+    });
+});
+
+// 标签页切换函数
+function openTab(tabName) {
+    // 隐藏所有标签内容
+    document.querySelectorAll('.tabcontent').forEach(tab => {
+        tab.style.display = 'none';
+    });
+    // 显示目标标签内容
+    document.getElementById(tabName).style.display = 'block';
+    // 更新标签按钮状态
+    document.querySelectorAll('.tab button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById(tabName + 'Tab').classList.add('active');
+}
+
+// 重置搜索函数
+function resetSearch() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('searchStatus').classList.add('hidden');
+    document.getElementById('resetSearch').classList.add('hidden');
+    document.getElementById('noResults').classList.add('hidden');
+    
+    // 显示所有活动卡片
+    document.querySelectorAll('.card-hover').forEach(card => {
+        card.style.display = '';
+    });
+}
+</script>
+</body>
+
+</html>
